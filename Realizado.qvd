@@ -1,0 +1,607 @@
+MaterialCodeMap:
+MAPPING LOAD 
+CódigodeMaterialOriginal, 
+CódigodeMaterialNovo
+from [lib://Controladoria:DataFiles/TrocadeCodigoMap.qvd](qvd);
+
+tempDRE:
+LOAD
+	MakeDate(Right(Período,4), Num(Left(Período,3)),1) as Data,
+If(WildMatch([Grupo Cliente], '*OPL*') or [Grupo Cliente] = 'EMEFARMA', 'OPL', 
+    If([Descr Regional] = 'Redes', 'Redes', 
+        If(WildMatch([Grupo Cliente], '*AMAZON*') or WildMatch([Descr Regional], '*Venda Direta*'), 'E-commerce Externo', 'ED')
+    )
+) as Canal,
+	ApplyMap('MaterialCodeMap', "Cód. Material", "Cód. Material") as Código,
+    Rg as UF,
+    Qtd.vendas as "Quantidade",
+    Centro,
+        IF(Centro = '0040', 'CD MG', 
+    	If(Centro = '0041', 'CD RS', 
+        	IF(WildMatch(Centro, '0045') or Centro = '0060', 'CD SP', 
+            	If(Centro = '0044', 'CD ES', 'Outro Centro')))) as  "Nome Centro",
+    "Descr Regional" as Divisional,
+    "Cód. Cliente",
+    "Nome Cliente",
+    "Grupo Cliente",
+    VL_FATUR as Receita,
+    "Receita Líquida" as ReceitaLiquida,
+    "Margem de Contribuição" as "LucroBruto", 
+    "(-) Impostos" as Imposto,  
+   	"Ajuste custo", 
+    Embalagem, 
+    Subcontratação, 
+    GGF, 
+    "Mão de Obra", 
+    Máquina, 
+    Material as MaterialValor, 
+   // "CPV Final" as "CPV Real",
+	"CPV Final" as "CPV", 
+     "Custo Revenda", 
+     "custo ind final"
+FROM [lib://Controladoria:DataFiles/DRE_Final.qvd]
+(qvd);
+
+tempDRE_2:
+LOAD
+	*, 
+    Canal&' '&UF as Juncao_Canal_Rg
+Resident tempDRE;
+
+Drop Table tempDRE;
+
+
+tempDRE_3:
+Load
+	*,
+    If(Canal = 'ED' or Canal = 'OPL', Juncao_Canal_Rg, 
+    	If(Canal = 'Redes', [Grupo Cliente], 
+        	If(Canal = 'E-commerce Externo', Canal, 'Não classificado'))) as Rede
+Resident tempDRE_2;
+
+Drop table tempDRE_2;
+
+Concatenate(tempDRE_3)
+load
+	Data, Canal, UF, Código, Divisional, Rede,
+   	Sum([CPV]) - (Sum([Ajuste custo]) + sum([ST GNRE (0060)]) + sum([di st-ibs2]) + sum([IPI CUSTO DISTR]) + sum([Estorno Crédito ICMS ZFM]) + sum([Crédito Adjudicado])) as CPV_Sem_Imposto
+Resident tempDRE_3
+Group By Data, Canal, UF, Código, Divisional, Rede;
+
+/////////////////////////////////////////////////////////////////////////////////
+Concatenate(tempDRE_3)
+load 
+	Data, Canal, UF, Código, Divisional, Rede,
+   (Sum([Máquina]) + Sum([Mão de Obra]) + Sum([GGF])) as CPV_Fixo_Inteiro
+Resident tempDRE_3
+Where Year(Date#(Data, 'DD/MM/YYYY')) = 2025 
+			and Month(Date#(Data, 'DD/MM/YYYY')) <= 7
+Group by Data, Canal, UF, Código, Divisional, Rede;
+
+Concatenate(tempDRE_3)
+load 
+	Data, Canal, UF, Código, Divisional, Rede,
+  ((Sum([Máquina] * Quantidade)  + Sum([Mão de Obra] *  Quantidade) + Sum([GGF] * Quantidade)) * -1) as CPV_Fixo_Inteiro
+Resident tempDRE_3
+Where not (Year(Date#(Data, 'DD/MM/YYYY')) = 2025 
+			and Month(Date#(Data, 'DD/MM/YYYY')) <= 7)
+Group by Data, Canal, UF, Código, Divisional, Rede;
+
+/////////////////////////////////////////////////////////////////////////////////
+
+
+Concatenate(tempDRE_3)
+load 
+	Data, Canal, UF, Código, Divisional, Rede,
+  ((Sum([MaterialValor]) + Sum([Embalagem]) + Sum([Subcontratação])) + 
+   	(Sum([Ajuste custo]) + Sum([ST GNRE (0060)]) + Sum([di st-ibs2]) + Sum([IPI CUSTO DISTR]) 
+    + Sum([Estorno Crédito ICMS ZFM]) + Sum([Crédito Adjudicado])) + 
+	Sum(IF(
+        Left([Código], 1) = '6', 
+        [custo ind final] - [Ajuste custo], 
+        [Custo Revenda]
+    )))
+    as CPV_Variavel_Inteiro
+Resident tempDRE_3
+Where Year(Date#(Data, 'DD/MM/YYYY')) = 2025
+	and Month(Date#(Data, 'DD/MM/YYYY')) <= 7
+Group by Data, Canal, UF, Código, Divisional, Rede;
+
+Concatenate(tempDRE_3)
+load 
+	Data, Canal, UF, Código, Divisional, Rede,
+  (((Sum([MaterialValor] * Quantidade) + Sum([Embalagem] * Quantidade) + Sum([Subcontratação] * Quantidade)) * -1) + 
+   	(Sum([Ajuste custo]) + Sum([ST GNRE (0060)]) + Sum([di st-ibs2]) + Sum([IPI CUSTO DISTR]) 
+    + Sum([Estorno Crédito ICMS ZFM]) + Sum([Crédito Adjudicado])) +
+	 Sum(IF(
+        Left([Código], 1) = '6', 
+        [custo ind final] - [Ajuste custo], 
+        [Custo Revenda]
+    )))
+    as CPV_Variavel_Inteiro
+Resident tempDRE_3
+Where not (Year(Date#(Data, 'DD/MM/YYYY')) = 2025
+	and Month(Date#(Data, 'DD/MM/YYYY')) <= 7)
+Group by Data, Canal, UF, Código, Divisional, Rede;
+
+/////////////////////////////////////////////////////////////////////////////////
+
+Concatenate(tempDRE_3)
+load 
+	Data, Canal, UF, Código, Divisional, Rede,
+  ((Sum([MaterialValor]) + Sum([Embalagem]) + Sum([Subcontratação])) + Sum(IF(
+        Left([Código], 1) = '6', 
+        [custo ind final] - [Ajuste custo], 
+        [Custo Revenda]
+    )))
+    as CPV_Variavel_Sem_Imposto_Inteiro
+Resident tempDRE_3
+Where Year(Date#(Data, 'DD/MM/YYYY')) = 2025
+	and Month(Date#(Data, 'DD/MM/YYYY')) <= 7
+Group by Data, Canal, UF, Código, Divisional, Rede;
+
+Concatenate(tempDRE_3)
+load 
+	Data, Canal, UF, Código, Divisional, Rede,
+  (((Sum([MaterialValor] * Quantidade) + Sum([Embalagem] * Quantidade) + Sum([Subcontratação] * Quantidade)) * -1) + Sum(IF(
+        Left([Código], 1) = '6', 
+        [custo ind final] - [Ajuste custo], 
+        [Custo Revenda]
+    ))) 
+    as CPV_Variavel_Sem_Imposto_Inteiro
+Resident tempDRE_3
+Where not (Year(Date#(Data, 'DD/MM/YYYY')) = 2025
+	and Month(Date#(Data, 'DD/MM/YYYY')) <= 7)
+Group by Data, Canal, UF, Código, Divisional, Rede;
+
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+Materiais:
+LOAD Distinct
+    CodMaterial as Código, 
+    Marca,
+    Material as "Descrição Material",
+    CodMaterial&' | '&Material as "Material + Descrição"
+FROM [lib://Controladoria:DataFiles/Materiais.qvd]
+(qvd);
+
+Concatenate(Materiais)
+LOAD 
+    Trim(Código) as Código, 
+    Trim(Marca) as Marca,
+    Trim("Descrição Material") as "Descrição Material",
+    Trim("Material + Descrição") as "Material + Descrição"
+FROM [lib://Controladoria:DataFiles/Exceções.xlsx]
+(ooxml, embedded labels, table is Material);
+
+Left Join(tempDRE_3)
+LOAD * Resident Materiais;
+
+Drop Table Materiais;
+
+
+///////////////////////////////////////////////////////////////////
+// Base Tabela Temporária de CPV (Orçamento)
+///////////////////////////////////////////////////////////////////
+
+TempOrçado:
+LOAD
+	MakeDate(Right(Período,4), Num(Left(Período,3)),1) as Data,
+    Canal,
+    UF,
+    Rede,
+	ApplyMap('MaterialCodeMap', "Cód. Material", "Cód. Material") as Código,
+    Divisional,
+    "CPV Orçado" / "Qtd. Orçado" as [CPV Un Orçado],
+    "CPV Fixo Orçado" as [CPV Fixo Un Orçado],
+    "CPV Variável Orçado" as [CPV Var Un Orçado],
+     "Receita Líquida Orçado" / "Qtd. Orçado" as [Preço_Líquido_Orçado], 
+      "Impostos Orçado" / "Receita Bruta Orçado" as "% Imposto Orçado"
+FROM [lib://Controladoria:DataFiles/Base Lucratividade Orçamento 2025.xlsx]
+(ooxml, embedded labels, table is Planilha1);
+
+Concatenate(TempOrçado)
+ORÇ26:
+LOAD
+	Data,
+	Canal,
+    UF,
+    Rede,
+	ApplyMap('MaterialCodeMap', "Código", "Código") as Código,
+    Divisional, 
+    CPV_Total / Quantidade as [CPV Un Orçado], 
+    CPV_Fixo_Unit as [CPV Fixo Un Orçado],
+    CPV_Var_Unit as [CPV Var Un Orçado],
+    "Receita_Liquida" / "Quantidade" as [Preço_Líquido_Orçado], 
+     Imposto / Receita_Bruta as "% Imposto Orçado"
+FROM [lib://Controladoria:DataFiles/OrçamentoLucratividade2026.qvd](qvd);
+    
+
+
+MateriaisAux:
+LOAD Distinct CodMaterial as Código, Marca FROM [lib://Controladoria:DataFiles/Materiais.qvd] (qvd);
+Concatenate(MateriaisAux)
+LOAD Trim(Código) as Código, Trim(Marca) as Marca FROM [lib://Controladoria:DataFiles/Exceções.xlsx] (ooxml, embedded labels, table is Material);
+
+Left Join(TempOrçado)
+LOAD * Resident MateriaisAux;
+
+Drop Table MateriaisAux;
+
+
+///////////////////////////////////////////////////////////////////
+// HIERARQUIA DE FALLBACK cpv total 
+///////////////////////////////////////////////////////////////////
+
+// Nível 1 — exato
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(UF) as UF, 
+     Trim(Código) as Código, 
+     Divisional,
+     Rede, 
+     Max(Trim([CPV Un Orçado])) as [CPV Un Orçado]
+Resident TempOrçado
+Group By Data, Canal, UF, Código, Divisional, Rede;
+
+// Nível 4 — média por UF 
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(UF) as UF, 
+     Trim(Código) as Código, 
+     Avg(Trim([CPV Un Orçado])) as [CPV Un Orçado Brasil]
+Resident TempOrçado
+Group By Data, UF, Código;
+
+// Nível 3 — média por Canal
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(Código) as Código, 
+     Avg(Trim([CPV Un Orçado])) as [CPV Un Orçado Canal]
+Resident TempOrçado
+Group By Data, Canal, Código;
+
+// Nível 2 — média por Marca
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Código) as Código, 
+     Marca, 
+     Avg(Trim([CPV Un Orçado])) as [CPV Un Orçado Marca]
+Resident TempOrçado
+Group By Data, Marca, Código;
+
+//Drop Table tempCPV;
+
+// Nível 5 — Fallback Final Realizado
+Left Join (tempDRE_3)
+LOAD
+    Código,
+    Data,
+    Sum("CPV") / Sum("Quantidade") as [CPV Médio]
+Resident tempDRE_3
+Group By Código, Data;
+
+
+
+///////////////////////////////////////////////////////////////////
+// HIERARQUIA DE FALLBACK cpv fixo
+///////////////////////////////////////////////////////////////////
+
+// Nível 1 — exato
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(UF) as UF, 
+     Trim(Código) as Código, 
+     Divisional,
+     Rede, 
+     Max(Trim([CPV Fixo Un Orçado])) as [CPV Fixo Un Orçado]
+Resident TempOrçado
+Group By Data, Canal, UF, Código, Divisional, Rede;
+
+// Nível 4 — média por UF 
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(UF) as UF, 
+     Trim(Código) as Código, 
+     Avg(Trim([CPV Fixo Un Orçado])) as [CPV Fixo Un Orçado Brasil]
+Resident TempOrçado
+Group By Data, UF, Código;
+
+// Nível 3 — média por Canal
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(Código) as Código, 
+     Avg(Trim([CPV Fixo Un Orçado])) as [CPV Fixo Un Orçado Canal]
+Resident TempOrçado
+Group By Data, Canal, Código;
+
+// Nível 2 — média por Marca
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Código) as Código, 
+     Marca, 
+     Avg(Trim([CPV Fixo Un Orçado])) as [CPV Fixo Un Orçado Marca]
+Resident TempOrçado
+Group By Data, Marca, Código;
+
+//Drop Table tempCPV;
+
+// Nível 5 — Fallback Final Realizado
+Left Join (tempDRE_3)
+LOAD
+    Código,
+    Data,
+    Sum("CPV_Fixo_Inteiro") / Sum("Quantidade") as [CPV Fixo Médio]
+Resident tempDRE_3
+Group By Código, Data;
+
+///////////////////////////////////////////////////////////////////
+// HIERARQUIA DE FALLBACK cpv var com imposto
+///////////////////////////////////////////////////////////////////
+
+// Nível 1 — exato
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(UF) as UF, 
+     Trim(Código) as Código, 
+     Divisional,
+     Rede, 
+     Max(Trim([CPV Var Un Orçado])) as [CPV Var Un Orçado]
+Resident TempOrçado
+Group By Data, Canal, UF, Código, Divisional, Rede;
+
+// Nível 4 — média por UF 
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(UF) as UF, 
+     Trim(Código) as Código, 
+     Avg(Trim([CPV Var Un Orçado])) as [CPV Var Un Orçado Brasil]
+Resident TempOrçado
+Group By Data, UF, Código;
+
+// Nível 3 — média por Canal
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(Código) as Código, 
+     Avg(Trim([CPV Var Un Orçado])) as [CPV Var Un Orçado Canal]
+Resident TempOrçado
+Group By Data, Canal, Código;
+
+// Nível 2 — média por Marca
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Código) as Código, 
+     Marca, 
+     Avg(Trim([CPV Var Un Orçado])) as [CPV Var Un Orçado Marca]
+Resident TempOrçado
+Group By Data, Marca, Código;
+
+//Drop Table tempCPV;
+
+// Nível 5 — Fallback Final Realizado
+Left Join (tempDRE_3)
+LOAD
+    Código,
+    Data,
+    Sum("CPV_Variavel_Inteiro") / Sum("Quantidade") as [CPV Var Médio]
+Resident tempDRE_3
+Group By Código, Data;
+
+
+///////////////////////////////////////////////////////////////////
+// HIERARQUIA DE FALLBACK IMPOSTO 
+///////////////////////////////////////////////////////////////////
+
+
+NoConcatenate
+temp_Imposto_2027:
+LOAD
+	AddYears(Data, 1) as Data, 
+    ApplyMap('MaterialCodeMap', Código, Código) as Código, 
+    Canal, 
+    UF,
+    Rede, 
+    Divisional,
+    Marca, 
+    "% Imposto Orçado"
+Resident TempOrçado
+Where Year(Data) = 2026; 
+
+Concatenate(TempOrçado)
+load * Resident temp_Imposto_2027;
+
+drop table temp_Imposto_2027;
+
+Left Join(tempDRE_3)
+LOAD 
+	Canal, 
+    Rede, 
+    Divisional,
+    UF, 
+    Data, 
+    TRIM(Código) as Código,
+    MAX(TRIM("% Imposto Orçado")) as "% Imposto Orçado"
+Resident TempOrçado
+Group by Data, Canal, UF, Código, Rede, Divisional;
+
+Left Join(tempDRE_3)
+Load
+	UF, 
+    Data, 
+    TRIM(Código) as Código,
+    Avg(TRIM("% Imposto Orçado")) as "% Imposto Orçado Brasil"
+resident TempOrçado
+Group By UF, Data, Código;
+
+Left Join(tempDRE_3)
+Load
+	Canal, 
+    Data, 
+    TRIM(Código) as Código,
+    Avg(TRIM("% Imposto Orçado")) as "% Imposto Orçado Canal"
+resident TempOrçado
+Group By Canal, Data, Código;
+
+Left Join(tempDRE_3)
+Load
+// 	UF, 
+//     Canal,
+    Marca,
+    Data, 
+    Avg(TRIM("% Imposto Orçado")) as "% Imposto Orçado Marca"
+resident TempOrçado
+Group By Data, Marca;
+
+
+
+
+///////////////////////////////////////////////////////////////////////
+// Nível 1 — exato
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Trim(UF) as UF, 
+     Código, 
+     Divisional,
+     Rede, 
+     Max(Trim([Preço_Líquido_Orçado])) as [Preço_Líquido_Orçado]
+Resident TempOrçado
+Group By Data, Canal, UF, Código, Divisional, Rede;
+
+// Nível 4 — média por Rg (Ajustada a ordem lógica/dependência de campos)
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(UF) as UF, 
+     Código, 
+     Avg(Trim([Preço_Líquido_Orçado])) as [Preço_Líquido_Orçado Brasil]
+Resident TempOrçado
+Group By Data, UF, Código;
+
+// Nível 3 — média por Canal
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Trim(Canal) as Canal, 
+     Código, 
+     Avg(Trim([Preço_Líquido_Orçado])) as [Preço_Líquido_Orçado Canal]
+Resident TempOrçado
+Group By Data, Canal, Código;
+
+// Nível 2 — média por Marca
+Left Join(tempDRE_3)
+LOAD Date(Trim(Data)) as Data, 
+     Código, 
+     Marca, 
+     Avg(Trim([Preço_Líquido_Orçado])) as [Preço_Líquido_Orçado Marca]
+Resident TempOrçado
+Group By Data, Marca, Código;
+
+Drop Table TempOrçado;
+
+// Nível 5 — Fallback Final Realizado
+Left Join (tempDRE_3)
+LOAD
+    Código,
+    Data,
+    Sum("ReceitaLiquida") / Sum("Quantidade") as [Preço Médio]
+Resident tempDRE_3
+Group By Código, Data;
+
+////////////////////////////////////////////////////////////////////////////
+DRE:
+Load *,
+	'Realizado' as Base, 
+    
+ //////////////////  CPV total  ///////////////////////    
+
+     If(IsNull([CPV Un Orçado]) or [CPV Un Orçado] = 0,
+         If(IsNull([CPV Un Orçado Marca]) or [CPV Un Orçado Marca] = 0,
+             If(IsNull([CPV Un Orçado Canal]) or [CPV Un Orçado Canal] = 0,
+                 If(IsNull([CPV Un Orçado Brasil]) or [CPV Un Orçado Brasil] = 0,
+                     [CPV Médio]
+                 , [CPV Un Orçado Brasil])
+             , [CPV Un Orçado Canal])
+         , [CPV Un Orçado Marca])
+     , [CPV Un Orçado]) as [CPV Un Orçado Final],
+     
+     If(IsNull([CPV Un Orçado]) or [CPV Un Orçado] = 0,
+         If(IsNull([CPV Un Orçado Marca]) or [CPV Un Orçado Marca] = 0,
+             If(IsNull([CPV Un Orçado Canal]) or [CPV Un Orçado Canal] = 0,
+                 If(IsNull([CPV Un Orçado Brasil]) or [CPV Un Orçado Brasil] = 0,
+                     [CPV Médio] * "Quantidade"
+                 , [CPV Un Orçado Brasil] * "Quantidade")
+             , [CPV Un Orçado Canal] * "Quantidade")
+         , [CPV Un Orçado Marca] * "Quantidade")
+     , [CPV Un Orçado] * "Quantidade") as [CPV Orçado], 
+     
+ //////////////////  CPV Fixo  ///////////////////////    
+      If(IsNull([CPV Fixo Un Orçado]) or [CPV Fixo Un Orçado] = 0,
+         If(IsNull([CPV Fixo Un Orçado Marca]) or [CPV Fixo Un Orçado Marca] = 0,
+             If(IsNull([CPV Fixo Un Orçado Canal]) or [CPV Fixo Un Orçado Canal] = 0,
+                 If(IsNull([CPV Fixo Un Orçado Brasil]) or [CPV Fixo Un Orçado Brasil] = 0,
+                     [CPV Fixo Médio] * "Quantidade"
+                 , [CPV Fixo Un Orçado Brasil] * "Quantidade")
+             , [CPV Fixo Un Orçado Canal] * "Quantidade")
+         , [CPV Fixo Un Orçado Marca] * "Quantidade")
+     , [CPV Fixo Un Orçado] * "Quantidade") as [CPV Fixo Orçado], 
+     
+ //////////////////  CPV Var   ///////////////////////    
+           If(IsNull([CPV Var Un Orçado]) or [CPV Var Un Orçado] = 0,
+         If(IsNull([CPV Var Un Orçado Marca]) or [CPV Var Un Orçado Marca] = 0,
+             If(IsNull([CPV Var Un Orçado Canal]) or [CPV Var Un Orçado Canal] = 0,
+                 If(IsNull([CPV Var Un Orçado Brasil]) or [CPV Var Un Orçado Brasil] = 0,
+                     [CPV Var Médio] * "Quantidade"
+                 , [CPV Var Un Orçado Brasil] * "Quantidade")
+             , [CPV Var Un Orçado Canal] * "Quantidade")
+         , [CPV Var Un Orçado Marca] * "Quantidade")
+     , [CPV Var Un Orçado] * "Quantidade") as [CPV Var Orçado], 
+
+ //////////////////  Preço Líquido   ///////////////////////    
+     
+     
+          If(IsNull([Preço_Líquido_Orçado]) or [Preço_Líquido_Orçado] = 0,
+         If(IsNull([Preço_Líquido_Orçado Marca]) or [Preço_Líquido_Orçado Marca] = 0,
+             If(IsNull([Preço_Líquido_Orçado Canal]) or [Preço_Líquido_Orçado Canal] = 0,
+                 If(IsNull([Preço_Líquido_Orçado Brasil]) or [Preço_Líquido_Orçado Brasil] = 0,
+                     [Preço Médio]
+                 , [Preço_Líquido_Orçado Brasil])
+             , [Preço_Líquido_Orçado Canal])
+         , [Preço_Líquido_Orçado Marca])
+     , [Preço_Líquido_Orçado]) as [Preço_Líquido_Orçado Final],
+
+ //////////////////  Receita Líquida para PVM de Custo   ///////////////////////         
+     If(IsNull([Preço_Líquido_Orçado]) or [Preço_Líquido_Orçado] = 0,
+         If(IsNull([Preço_Líquido_Orçado Marca]) or [Preço_Líquido_Orçado Marca] = 0,
+             If(IsNull([Preço_Líquido_Orçado Canal]) or [Preço_Líquido_Orçado Canal] = 0,
+                 If(IsNull([Preço_Líquido_Orçado Brasil]) or [Preço_Líquido_Orçado Brasil] = 0,
+                     [Preço Médio] * Quantidade
+                 , [Preço_Líquido_Orçado Brasil] * Quantidade)
+             , [Preço_Líquido_Orçado Canal] * Quantidade)
+         , [Preço_Líquido_Orçado Marca] * Quantidade)
+     , [Preço_Líquido_Orçado] * "Quantidade") as [Receita_Líquida_PVMCusto],
+
+  //////////////////  Imposto    ///////////////////////         
+    
+          Alt(
+        If("% Imposto Orçado" = 0, Null(), "% Imposto Orçado"), 
+        If("% Imposto Orçado Marca" = 0, Null(), "% Imposto Orçado Marca"), 
+        If("% Imposto Orçado Brasil" = 0, Null(), "% Imposto Orçado Brasil"), 
+        If("% Imposto Orçado Canal" = 0, Null(), "% Imposto Orçado Canal")
+
+    ) * "Receita"
+    as "Imposto Orçado Final"
+     
+
+Resident tempDRE_3;
+
+Drop Table tempDRE_3;
+
+
+Store DRE into [lib://Controladoria:DataFiles/Realizado.qvd](qvd);
+Drop Table DRE;
