@@ -1,0 +1,532 @@
+PVMTypes:
+Load * Inline [
+TypePVM
+PVM Receita Bruta
+PVM Receita Líquida
+PVM Preço Margem
+PVM Custo - C/ Imposto ñ Recuperado
+PVM Custo - S/ Imposto ñ Recuperado
+PVM Custo Margem - C/ Imposto ñ Recuperado
+PVM Custo Margem - S/ Imposto ñ Recuperado
+];
+
+IndicadoresOptions:
+Load Trim(OptionIndic) as OptionIndic Inline [ 
+OptionIndic
+Lucro Bruto
+P
+V
+M
+Volume
+Receita Líquida
+Receita Bruta
+Preço Líquido
+Preço Bruto
+Margem %
+Margem Unit
+CPV
+CPV Unit
+CPV Variável
+CPV Fixo
+];
+
+
+
+CombinacoesDRE:
+Load * Inline [
+combinacoesDRE
+Realizado + Orçado
+Realizado + Forecast Maio 26
+Realizado + Forecast Junho 26
+Orçado + Forecast Maio 26
+Orçado + Forecast Junho 26
+Forecast Maio 26 + Forecast Junho 26
+Realizado + Realizado
+Orçado + Orçado 
+Forecast Maio 26 + Forecast Maio 26
+Forecast Junho 26 + Forecast Junho 26
+];
+
+LinhasDRE:
+Load * Inline [
+LinhaDRE
+Faturamento Bruto
+Impostos
+Faturamento Líquido
+CPV Variável
+Margem de Contribuição 
+CPV Fixo
+Lucro Bruto
+];
+
+ColunasDRE:
+LOAD * INLINE [
+OrdemBase, BaseNome, OrdemMetrica, MetricaNome, ChaveColuna
+1, Base1, 1, R$, Base1|R$
+1, Base1, 2, %, Base1|%
+2, Base2, 1, R$, Base2|R$
+2, Base2, 2, %, Base2|%
+3, Variação, 1, R$, Variação|R$
+3, Variação, 2, %, Variação|%
+];
+
+DefaultIndicadores: 
+Load * Inline [ 
+TipoPVM, Indicadores
+PVM Preço Margem, P
+PVM Preço Margem, V
+PVM Preço Margem, M
+PVM Preço Margem, Lucro Bruto
+PVM Preço Margem, Margem %
+PVM Preço Margem, Volume
+PVM Preço Margem, Receita Líquida
+PVM Preço Margem, Preço Líquido
+PVM Preço Margem, Margem Unit
+PVM Preço Margem, Receita Bruta
+PVM Preço Margem, Preço Bruto
+PVM Receita Bruta, P
+PVM Receita Bruta, V
+PVM Receita Bruta, M
+PVM Receita Bruta, Volume
+PVM Receita Bruta, Receita Bruta
+PVM Receita Bruta, Preço Bruto
+PVM Receita Líquida, P
+PVM Receita Líquida, V
+PVM Receita Líquida, M
+PVM Receita Líquida, Volume
+PVM Receita Líquida, Receita Líquida
+PVM Receita Líquida, Preço Líquido
+PVM Custo - C/ Imposto ñ Recuperado, P
+PVM Custo - S/ Imposto ñ Recuperado, P
+PVM Custo - C/ Imposto ñ Recuperado, V
+PVM Custo - S/ Imposto ñ Recuperado, V
+PVM Custo - C/ Imposto ñ Recuperado, M
+PVM Custo - S/ Imposto ñ Recuperado, M
+PVM Custo - C/ Imposto ñ Recuperado, CPV
+PVM Custo - S/ Imposto ñ Recuperado, CPV
+PVM Custo - C/ Imposto ñ Recuperado, CPV Unit
+PVM Custo - S/ Imposto ñ Recuperado, CPV Unit
+PVM Custo - C/ Imposto ñ Recuperado, Volume
+PVM Custo - S/ Imposto ñ Recuperado, Volume
+PVM Custo - C/ Imposto ñ Recuperado, CPV Variável
+PVM Custo - S/ Imposto ñ Recuperado, CPV Variável
+PVM Custo - C/ Imposto ñ Recuperado, CPV Fixo
+PVM Custo - S/ Imposto ñ Recuperado, CPV Fixo
+PVM Custo Margem - C/ Imposto ñ Recuperado, P
+PVM Custo Margem - S/ Imposto ñ Recuperado, P
+PVM Custo Margem - C/ Imposto ñ Recuperado, V
+PVM Custo Margem - S/ Imposto ñ Recuperado, V
+PVM Custo Margem - C/ Imposto ñ Recuperado, M
+PVM Custo Margem - S/ Imposto ñ Recuperado, M
+PVM Custo Margem - C/ Imposto ñ Recuperado, Lucro Bruto
+PVM Custo Margem - S/ Imposto ñ Recuperado, Lucro Bruto
+PVM Custo Margem - C/ Imposto ñ Recuperado, CPV Unit
+PVM Custo Margem - S/ Imposto ñ Recuperado, CPV Unit
+PVM Custo Margem - C/ Imposto ñ Recuperado, Volume
+PVM Custo Margem - S/ Imposto ñ Recuperado, Volume
+PVM Custo Margem - C/ Imposto ñ Recuperado, CPV Variável
+PVM Custo Margem - S/ Imposto ñ Recuperado, CPV Variável
+PVM Custo Margem - C/ Imposto ñ Recuperado, CPV Fixo
+PVM Custo Margem - S/ Imposto ñ Recuperado, CPV Fixo
+
+];
+
+
+DRE:
+Load * From [lib://Controladoria:DataFiles/Realizado.qvd] (qvd);
+Concatenate(DRE)
+Load * From [lib://Controladoria:DataFiles/Orcado.qvd] (qvd);
+Concatenate(DRE)
+Load * From [lib://Controladoria:DataFiles/OrcadoReforma.qvd] (qvd);
+Concatenate(DRE)
+Load * From [lib://Controladoria:DataFiles/Forecast.qvd] (qvd);
+Load * From [lib://Controladoria:DataFiles/ForecastCorte.qvd] (qvd);
+
+Agg_Real_A:
+load 
+	Data, Canal, UF, Código, Divisional, Rede, Base,
+    Sum(ReceitaLiquida) as ReceitaLiquida_PVM,
+    Sum(LucroBruto) as LucroBruto_PVM,
+    Sum([CPV]) as CPV_PVM,
+   	Sum(CPV_Fixo_Inteiro) as CPV_Fixo_PVM,
+  	Sum(CPV_Variavel_Inteiro) as CPV_Var_PVM, 
+    Sum(Imposto) as Imposto_PVM
+Resident DRE
+Where Base = 'Realizado' 
+Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+Tipo_A:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Receita Bruta
+PVM Receita Líquida
+];
+
+Join(Tipo_A)
+load * Resident Agg_Real_A;
+
+Fato_PVM:
+NoConcatenate
+Load * Resident Tipo_A;
+
+Drop table Agg_Real_A, Tipo_A;
+
+Concatenate(Fato_PVM)
+load 
+	'PVM Preço Margem' as TypePVM, 
+    Data, Canal, UF, Código, Divisional, Rede, Base,
+    Sum(ReceitaLiquida) as ReceitaLiquida_PVM,
+    Sum(ReceitaLiquida) + Sum([CPV Orçado]) as LucroBruto_PVM, 
+    Sum([CPV Orçado]) as CPV_PVM, 
+	Sum([CPV Fixo Orçado]) as CPV_Fixo_PVM,
+  	Sum([CPV Var Orçado]) as CPV_Var_PVM, 
+    Sum(Imposto) as Imposto_PVM
+Resident DRE
+Where Base = 'Realizado' 
+Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+Agg_Real_C:
+load 
+    Data, Canal, UF, Código, Divisional, Rede, Base,
+    Sum([Receita_Líquida_PVMCusto]) as ReceitaLiquida_PVM,
+    Sum([Receita_Líquida_PVMCusto]) + Sum([CPV]) as LucroBruto_PVM,
+    (Sum([CPV])) as CPV_PVM, 
+   	Sum(CPV_Fixo_Inteiro) as CPV_Fixo_PVM,
+  	Sum(CPV_Variavel_Inteiro) as CPV_Var_PVM,
+    Sum("Imposto Orçado Final") as Imposto_PVM
+Resident DRE
+Where Base = 'Realizado' 
+Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+
+Tipo_C:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Custo - C/ Imposto ñ Recuperado
+PVM Custo Margem - C/ Imposto ñ Recuperado
+];
+
+Join(Tipo_C)
+load * Resident Agg_Real_C;
+
+Concatenate(Fato_PVM)
+Load * Resident Tipo_C;
+
+Drop table Agg_Real_C, Tipo_C;
+
+Agg_Real_D:
+load 
+    Data, Canal, UF, Código, Divisional, Rede, Base,
+    Sum([Receita_Líquida_PVMCusto]) as ReceitaLiquida_PVM, 
+    Sum([Receita_Líquida_PVMCusto]) + Sum([CPV_Sem_Imposto]) as LucroBruto_PVM,
+    (Sum([CPV_Sem_Imposto])) as CPV_PVM, 
+   	Sum(CPV_Fixo_Inteiro) as CPV_Fixo_PVM,
+  	Sum(CPV_Variavel_Sem_Imposto_Inteiro) as CPV_Var_PVM,
+    Sum("Imposto Orçado Final") as Imposto_PVM
+Resident DRE
+Where Base = 'Realizado' 
+Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+Tipo_D:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Custo - S/ Imposto ñ Recuperado
+PVM Custo Margem - S/ Imposto ñ Recuperado
+];
+
+Join(Tipo_D)
+load * Resident Agg_Real_D;
+
+Concatenate(Fato_PVM)
+Load * Resident Tipo_D;
+
+Drop table Agg_Real_D, Tipo_D;
+
+Agg_Orc_ComImposto:
+    Load
+        Data, Canal, UF, Código, Divisional, Rede, Base,
+        Sum([ReceitaLiquida]) as ReceitaLiquida_PVM, 
+        Sum([LucroBruto]) as LucroBruto_PVM, 
+        Sum(CPV) as CPV_PVM, 
+        Sum(CPV_Fixo_Inteiro) as CPV_Fixo_PVM,
+        Sum(CPV_Variavel_Inteiro) as CPV_Var_PVM,
+        Sum(Imposto) as Imposto_PVM
+    Resident DRE
+    Where Base = 'Orçado'
+    Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+
+Tipos_Orc_ComImposto:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Receita Bruta
+PVM Receita Líquida
+PVM Preço Margem
+PVM Custo - C/ Imposto ñ Recuperado
+PVM Custo Margem - C/ Imposto ñ Recuperado
+];
+
+Join(Tipos_Orc_ComImposto)
+load * Resident Agg_Orc_ComImposto;
+
+Concatenate(Fato_PVM)
+Load * Resident Tipos_Orc_ComImposto;
+
+Drop Table Agg_Orc_ComImposto, Tipos_Orc_ComImposto;
+  
+Agg_Oc_SemImposto:
+    Load
+        Data, Canal, UF, Código, Divisional, Rede, Base,
+        Sum([ReceitaLiquida]) as ReceitaLiquida_PVM, 
+        Sum([LucroBruto]) as LucroBruto_PVM, 
+        Sum(CPV_Sem_Imposto) as CPV_PVM, 
+        Sum(CPV_Fixo_Inteiro) as CPV_Fixo_PVM,
+        Sum(CPV_Variavel_Sem_Imposto_Inteiro) as CPV_Var_PVM,
+        Sum(Imposto) as Imposto_PVM
+    Resident DRE
+    Where Base = 'Orçado'
+    Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+Tipos_Orc_SemImposto:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Custo - S/ Imposto ñ Recuperado
+PVM Custo Margem - S/ Imposto ñ Recuperado
+];
+
+Join(Tipos_Orc_SemImposto)
+load * Resident Agg_Oc_SemImposto;
+
+Concatenate(Fato_PVM)
+Load * Resident Tipos_Orc_SemImposto;
+
+Drop Table Agg_Oc_SemImposto, Tipos_Orc_SemImposto;
+
+////////////////////////////// ORÇAMENTO REFORMA TRIBUTÁRIA //////////////////////////////
+Agg_Orc_Reforma:
+    Load
+        Data, Canal, UF, Código, Divisional, Rede, Base,
+        Sum([ReceitaLiquida]) as ReceitaLiquida_PVM, 
+        Sum([LucroBruto]) as LucroBruto_PVM, 
+        (Sum(CPV) * -1) as CPV_PVM, 
+        (Sum(CPV_Fixo_Inteiro) * -1) as CPV_Fixo_PVM,
+        (Sum(CPV_Variavel_Inteiro) * -1) as CPV_Var_PVM,
+        Sum(Imposto) as Imposto_PVM
+    Resident DRE
+    Where Base = 'Orçamento Reforma Tributária'
+    Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+
+
+Tipos_Orc_Reforma:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Receita Bruta
+PVM Receita Líquida
+PVM Preço Margem
+PVM Custo - C/ Imposto ñ Recuperado
+PVM Custo Margem - C/ Imposto ñ Recuperado
+];
+
+Join(Tipos_Orc_Reforma)
+load * Resident Agg_Orc_Reforma;
+
+Concatenate(Fato_PVM)
+Load * Resident Tipos_Orc_Reforma;
+
+Drop Table Agg_Orc_Reforma, Tipos_Orc_Reforma;
+    
+Agg_Orc_ReformaSemImposto:
+    Load
+        Data, Canal, UF, Código, Divisional, Rede, Base,
+        Sum([ReceitaLiquida]) as ReceitaLiquida_PVM, 
+        Sum([LucroBruto]) as LucroBruto_PVM, 
+        (Sum(CPV_Sem_Imposto) * -1) as CPV_PVM, 
+        (Sum(CPV_Fixo_Inteiro) * -1) as CPV_Fixo_PVM,
+        (Sum(CPV_Variavel_Sem_Imposto_Inteiro) * -1) as CPV_Var_PVM,
+        Sum(Imposto) as Imposto_PVM
+    Resident DRE
+    Where Base = 'Orçamento Reforma Tributária'
+    Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+ 
+Tipos_Orc_ReformaSemImposto:
+NoConcatenate
+load * inline [
+TypePVM
+PVM Custo - S/ Imposto ñ Recuperado
+PVM Custo Margem - S/ Imposto ñ Recuperado
+];
+
+Join(Tipos_Orc_ReformaSemImposto)
+load * Resident Agg_Orc_ReformaSemImposto;
+
+Concatenate(Fato_PVM)
+Load * Resident Tipos_Orc_ReformaSemImposto;
+
+Drop Table Agg_Orc_ReformaSemImposto, Tipos_Orc_ReformaSemImposto;
+
+Temp_MapaOrcado:
+load 
+	Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede as ChaveOrc,
+    CPV_Unit_Sem_Imposto, 
+	CPV_Fixo, 
+    CPV_Variavel, 
+    CPV_Variavel_Sem_Imposto
+Resident DRE
+Where Base = 'Orçado';
+
+CPVOrcadoMapSemImposto:
+Mapping Load ChaveOrc, CPV_Unit_Sem_Imposto Resident Temp_MapaOrcado Where not IsNull(CPV_Unit_Sem_Imposto);
+
+CPVFixoOrcadoMap:
+Mapping Load ChaveOrc, CPV_Fixo Resident Temp_MapaOrcado Where not IsNull(CPV_Fixo);
+
+CPVVarOrcadoMap:
+Mapping Load ChaveOrc, CPV_Variavel Resident Temp_MapaOrcado Where not IsNull(CPV_Variavel);
+
+CPVVarOrcadoMapSemImposto:
+Mapping Load ChaveOrc, CPV_Variavel_Sem_Imposto Resident Temp_MapaOrcado Where not IsNull(CPV_Variavel_Sem_Imposto);
+
+Drop Table Temp_MapaOrcado;
+
+ForecastCorteMap:
+Mapping Load BaseForecast, DataCorte Resident ForecastCorte;
+
+Temp_Bases:
+Load Distinct BaseForecast Resident ForecastCorte;
+
+Let vNumBases = NoOfRows('Temp_Bases');
+
+Fato_PVM_RealizadoSnapshot:
+NoConcatenate
+Load *
+Resident Fato_PVM
+Where Base = 'Realizado';
+
+For i = 0 to $(vNumBases) - 1
+    Let vBaseAtual = Peek('BaseForecast', $(i), 'Temp_Bases');
+    Let vCorteAtual = Num(ApplyMap('ForecastCorteMap', '$(vBaseAtual)'));
+
+    DRE_ForecastAtual:
+    NoConcatenate
+    Load *
+    Resident DRE
+    Where Base = '$(vBaseAtual)' and Num(Data) >= $(vCorteAtual);
+
+
+
+Agg_Fc_ComImposto:
+         Load
+        Data, Canal, UF, Código, Divisional, Rede, Base,
+        Sum(ReceitaLiquida) as ReceitaLiquida_PVM,
+        Sum(ReceitaLiquida) + Sum([CPV Un Orçado Final] * Quantidade) as LucroBruto_PVM,
+        Sum([CPV Un Orçado Final] * Quantidade) as CPV_PVM, 
+        Sum(ApplyMap('CPVFixoOrcadoMap',
+            Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede, 0) * Quantidade) as CPV_Fixo_PVM,
+        Sum(ApplyMap('CPVVarOrcadoMap',
+            Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede, 0) * Quantidade) as CPV_Var_PVM,
+        Sum("Imposto Orçado Final") as Imposto_PVM              
+       Resident DRE_ForecastAtual
+       Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+    
+    Tipos_Fc_ComImposto:
+    NoConcatenate
+    Load * Inline [
+    TypePVM
+    PVM Preço Margem
+    PVM Receita Bruta
+    PVM Receita Líquida
+    PVM Custo - C/ Imposto ñ Recuperado
+    PVM Custo Margem - C/ Imposto ñ Recuperado
+    ];
+    
+     Join (Tipos_Fc_ComImposto)
+    Load * Resident Agg_Fc_ComImposto;
+
+    Concatenate(Fato_PVM)
+    Load * Resident Tipos_Fc_ComImposto;
+
+    Drop Tables Agg_Fc_ComImposto, Tipos_Fc_ComImposto;
+
+    Agg_Fc_SemImposto:
+        Load
+            Data, Canal, UF, Código, Divisional, Rede, Base,
+            Sum(ReceitaLiquida) as ReceitaLiquida_PVM,
+            Sum(ReceitaLiquida) +
+                Sum(ApplyMap('CPVOrcadoMapSemImposto',
+                    Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede, 0) * Quantidade)
+                as LucroBruto_PVM, 
+                Sum(ApplyMap('CPVOrcadoMapSemImposto',
+                    Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede, 0) * Quantidade) as CPV_PVM,
+                Sum(ApplyMap('CPVFixoOrcadoMap',
+            		Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede, 0) * Quantidade) as CPV_Fixo_PVM,
+        		Sum(ApplyMap('CPVVarOrcadoMapSemImposto',
+            		Data&'|'&Canal&'|'&UF&'|'&Código&'|'&Divisional&'|'&Rede, 0) * Quantidade) as CPV_Var_PVM,
+                 Sum("Imposto Orçado Final") as Imposto_PVM
+                
+
+        Resident DRE_ForecastAtual
+        Group By Data, Canal, UF, Código, Divisional, Rede, Base;
+    Tipos_Fc_SemImposto:
+    NoConcatenate
+        Load * Inline [
+        TypePVM
+        PVM Custo - S/ Imposto ñ Recuperado
+        PVM Custo Margem - S/ Imposto ñ Recuperado
+        ];
+
+        Join (Tipos_Fc_SemImposto)
+        Load * Resident Agg_Fc_SemImposto;
+
+        Concatenate(Fato_PVM)
+        Load * Resident Tipos_Fc_SemImposto;
+
+        Drop Tables Agg_Fc_SemImposto, Tipos_Fc_SemImposto;
+        Drop Table DRE_ForecastAtual;
+
+    // --- Meses espelhados (sem mudança) ---
+        Concatenate(Fato_PVM)
+        Load
+            TypePVM,
+            Data, Canal, UF, Código, Divisional, Rede,
+            '$(vBaseAtual)' as Base,
+            ReceitaLiquida_PVM,
+            LucroBruto_PVM,
+            CPV_PVM, 
+            CPV_Fixo_PVM, 
+            CPV_Var_PVM,
+            Imposto_PVM
+         Resident Fato_PVM_RealizadoSnapshot
+         Where Num(Data) < $(vCorteAtual);
+Next i
+
+Drop Table Fato_PVM_RealizadoSnapshot;
+Drop Table Temp_Bases;
+Drop Table ForecastCorte;
+
+MateriaisFinal:
+LOAD Distinct
+    CodMaterial as Código, 
+    Material as "Descrição Material",
+    Marca, 
+    CodMaterial&' | '&Material as "Material + Descrição"
+FROM [lib://Controladoria:DataFiles/Materiais.qvd] (qvd);
+
+Concatenate(MateriaisFinal)
+LOAD 
+    Trim(Código) as Código, 
+    Trim("Descrição Material") as "Descrição Material", 
+    Trim(Marca) as Marca, 
+    Trim("Material + Descrição") as "Material + Descrição"
+FROM [lib://Controladoria:DataFiles/Exceções.xlsx]
+(ooxml, embedded labels, table is Material);
+
+Left Join(Fato_PVM)
+LOAD * Resident MateriaisFinal;
+
+Drop Table MateriaisFinal;
