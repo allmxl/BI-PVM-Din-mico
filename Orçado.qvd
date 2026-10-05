@@ -1,0 +1,135 @@
+MaterialCodeMap:
+MAPPING LOAD 
+CódigodeMaterialOriginal, 
+CódigodeMaterialNovo
+from [lib://Controladoria:DataFiles/TrocadeCodigoMap.qvd](qvd);
+
+
+Orcado:
+LOAD
+	'Orçado' as Base,
+	MakeDate(Right(Período,4), Num(Left(Período,3)),1) as Data,
+    Canal,
+    UF,
+    Rede,
+    If(Match(UF, 'RS', 'SC', 'PR'), 'CD RS', 
+    IF(WildMatch(UF,'SP') and Canal <> 'Redes', 'CD SP', 
+    IF(UF ='MG', 'CD MG', 'CD ES'))) as "Nome Centro",         
+	ApplyMap('MaterialCodeMap', "Cód. Material", "Cód. Material") as Código,
+    Divisional,
+    "Qtd. Orçado" as "Quantidade",
+    "Receita Bruta Orçado" as Receita,
+   "Receita Líquida Orçado" as "ReceitaLiquida",
+    "Lucro Bruto Orçado" as LucroBruto,
+    "CPV Fixo Orçado" as CPV_Fixo,
+    "CPV Variável Orçado" as CPV_Variavel,
+   "Impostos Orçado" as "Imposto", 
+    "CPV Orçado" as CPV,
+	"CPV Orçado" as CPV_Sem_Imposto, 
+    "CPV Variável Orçado" as CPV_Variavel_Sem_Imposto
+
+FROM [lib://Controladoria:DataFiles/Base Lucratividade Orçamento 2025.xlsx]
+(ooxml, embedded labels, table is Planilha1);
+
+Concatenate(Orcado)
+Orç26:
+Load	
+	'Orçado' as Base,
+	Data, 
+    "Nome Centro",
+    Canal, 
+    UF, 
+    Rede, 
+	ApplyMap('MaterialCodeMap', "Código", "Código") as Código,
+    Divisional, 
+    Quantidade as "Quantidade", 
+    Receita_Bruta as "Receita",
+    Receita_Liquida as "ReceitaLiquida",
+    Lucro_Bruto as LucroBruto,
+    CPV_Total as "CPV",
+    CPV_Total_SemImposto as "CPV_Sem_Imposto",
+    CPV_Var_Unit as CPV_Variavel,
+    CPV_Fixo_Unit as  CPV_Fixo, 
+   // CPV_Fixo_Unit,
+    Imposto as "Imposto",
+    CPV_Var_Unit_SemImposto AS "CPV_Variavel_Sem_Imposto",
+    CPV_Fixo as CPV_Fixo_Inteiro, // adicionado
+    CPV_Var_SemImposto as CPV_Variavel_Sem_Imposto_Inteiro, // adicionado
+    CPV_Var as CPV_Variavel_Inteiro  // adicionado
+
+FROM [lib://Controladoria:DataFiles/OrçamentoLucratividade2026.qvd](qvd);   
+
+// Concatenate(Orcado)
+// Orç27:
+// Load	
+// 	'Orçado' as Base,
+// 	Data, 
+//     "Nome Centro",
+//     Canal, 
+//     UF, 
+//     Rede, 
+// 	ApplyMap('MaterialCodeMap', "Código", "Código") as Código,
+//     Divisional, 
+//     Quantidade as "Quantidade", 
+//     Receita_Bruta as "Receita",
+//     Receita_Liquida as "ReceitaLiquida",
+//     Lucro_Bruto as LucroBruto,
+//     CPV_Total as "CPV",
+//     CPV_Total_SemImposto as "CPV_Sem_Imposto",
+//     CPV_Var_Unit as CPV_Variavel,
+//     CPV_Fixo_Unit as  CPV_Fixo, 
+//    // CPV_Fixo_Unit,
+//     Imposto as "Imposto",
+//     CPV_Var_Unit_SemImposto AS "CPV_Variavel_Sem_Imposto",
+//     CPV_Fixo as CPV_Fixo_Inteiro, // adicionado
+//     CPV_Var_SemImposto as CPV_Variavel_Sem_Imposto_Inteiro, // adicionado
+//     CPV_Var as CPV_Variavel_Inteiro  // adicionado
+
+// FROM [lib://Controladoria:DataFiles/OrçamentoLucratividade2027.qvd](qvd); 
+    
+Concatenate(Orcado)
+load 
+	Data, Base, Canal, UF, Rede, Código, Divisional, 
+	Sum(CPV_Fixo * Quantidade) as CPV_Fixo_Inteiro,
+    Sum(CPV_Variavel * Quantidade) as CPV_Variavel_Inteiro, 
+    Sum(CPV_Variavel_Sem_Imposto * Quantidade) as CPV_Variavel_Sem_Imposto_Inteiro,
+    Sum(CPV / Quantidade) as CPV_Unit,
+    Sum(CPV_Sem_Imposto / Quantidade) as CPV_Unit_Sem_Imposto
+Resident Orcado
+Where Year(Data) = 2025 
+Group By 	Data, Base, Canal, UF, Rede, Código, Divisional;
+
+Concatenate(Orcado)
+load 
+	Data, Base, Canal, UF, Rede, Código, Divisional, 
+    Sum(CPV / Quantidade) as CPV_Unit,
+    Sum(CPV_Sem_Imposto / Quantidade) as CPV_Unit_Sem_Imposto
+Resident Orcado
+Where Year(Data) <= 2026
+Group By 	Data, Base, Canal, UF, Rede, Código, Divisional;
+
+
+MateriaisFinal:
+LOAD Distinct
+    CodMaterial as Código, 
+    Material as "Descrição Material",
+    Marca, 
+    CodMaterial&' | '&Material as "Material + Descrição"
+FROM [lib://Controladoria:DataFiles/Materiais.qvd] (qvd);
+
+Concatenate(MateriaisFinal)
+LOAD 
+    Trim(Código) as Código, 
+    Trim("Descrição Material") as "Descrição Material", 
+    Trim(Marca) as Marca, 
+    Trim("Material + Descrição") as "Material + Descrição"
+FROM [lib://Controladoria:DataFiles/Exceções.xlsx]
+(ooxml, embedded labels, table is Material);
+
+Left Join(Orcado)
+LOAD * Resident MateriaisFinal;
+
+Drop Table MateriaisFinal;
+
+Store Orcado into [lib://Controladoria:DataFiles/Orcado.qvd](qvd);
+Drop Table Orcado;
